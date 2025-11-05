@@ -1,9 +1,9 @@
 import pytorch_lightning as pl
 import torch
-from encoder import LiteMonoEncoder
-from decoder import LiteMonoDecoder
-from posnet import PoseNet
-from imageReconstruction import ImageReconOptimization
+from .encoder import LiteMonoEncoder
+from .decoder import LiteMonoDecoder
+from .posnet import PoseNet
+from .imageReconstruction import ImageReconOptimization
 
 class LiteMonoSystem(pl.LightningModule):
     def __init__(self, encoder_variant="base", decoder_channels=None, lr=1e-4):

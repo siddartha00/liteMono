@@ -13,11 +13,15 @@ class UpSampling(nn.Module):
         self.act2 = nn.GELU()
 
     def forward(self, x, skip):
-        x = F.interpolate(x, size=skip.shape[-2:], mode='bilinear', align_corners=False)
-        x = torch.cat([x, skip], dim=1)
+        if skip is not None:
+            x = F.interpolate(x, size=skip.shape[-2:], mode='bilinear', align_corners=False)
+            x = torch.cat([x, skip], dim=1)
+        else:
+            x = F.interpolate(x, scale_factor=2, mode='bilinear', align_corners=False)
         x = self.act1(self.conv1(x))
         x = self.act2(self.conv2(x))
         return x
+
 
 
 # --- Prediction Head ---
@@ -27,12 +31,12 @@ class PredHead(nn.Module):
         self.conv1 = nn.Conv2d(in_channels, in_channels // 2, kernel_size=3, padding=1)
         self.act1 = nn.GELU()
         self.conv2 = nn.Conv2d(in_channels // 2, 1, kernel_size=1)
+        self.act2 = nn.GELU()
         # Inverse depth maps are predicted with a sigmoid activation
 
     def forward(self, x):
         x = self.act1(self.conv1(x))
-        x = self.conv2(x)
-        x = torch.sigmoid(x)  # Output values in (0,1)
+        x = self.act2(self.conv2(x))
         return x
 
 
@@ -64,10 +68,13 @@ class LiteMonoDecoder(nn.Module):
         pred1 = self.head1(x)  # 1/4 resolution
 
         x = self.up2(x, x1)  # Upsample and concat with x1
+        print(f"After Up2 {x.shape}")
         pred2 = self.head2(x)  # 1/2 resolution
 
-        x = F.interpolate(x, scale_factor=2, mode='bilinear', align_corners=False)  # Up to full
+        target_size = x1.shape[-2:]
+        x = F.interpolate(x, size=target_size, mode='bilinear', align_corners=False)
         x = self.up3(x, None) if hasattr(self.up3, 'forward') and self.up3 is not None else x
+        print(f"After Up3 {x.shape}")
         pred3 = self.head3(x)  # Full resolution estimate
 
         # Return all scales for loss computation as in the paper

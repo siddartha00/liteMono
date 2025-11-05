@@ -72,4 +72,4 @@ class ImageReconOptimization(nn.Module):
         # Follows Monodepth2's project_3d/backproject methods or equivalent
         # You must provide this depending on your codebase
         # If not implemented, return src for shape correctness
-        return src 
+        return src
