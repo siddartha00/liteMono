@@ -5,6 +5,7 @@ from .decoder import LiteMonoDecoder
 from .posnet import PoseNet
 from .imageReconstruction import ImageReconOptimization
 
+
 class LiteMonoSystem(pl.LightningModule):
     def __init__(self, encoder_variant="base", decoder_channels=None, lr=1e-4):
         super().__init__()
@@ -36,7 +37,7 @@ class LiteMonoSystem(pl.LightningModule):
             pose_preds.append(pose)
         # Calculate loss using the loss module
         loss = self.loss_fn(img_tgt, img_srcs, disp_preds, pose_preds, intrinsics)
-        self.log('train_loss', loss)
+        self.log('train_loss', loss, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -46,14 +47,14 @@ class LiteMonoSystem(pl.LightningModule):
         disp_preds = self(img_tgt)
         pose_preds = [self.posenet(torch.cat([img_tgt, src], dim=1)) for src in img_srcs]
         loss = self.loss_fn(img_tgt, img_srcs, disp_preds, pose_preds, intrinsics)
-        self.log('val_loss', loss)
+        self.log('val_loss', loss, prog_bar=True)
         # For depth metrics: (if batch has gt)
         if 'gt_depth' in batch:
             depth_pred = 1/(disp_preds[0]+1e-8)
             gt_depth = batch['gt_depth']
             mask = gt_depth > 0
             absrel = torch.mean(torch.abs(depth_pred[mask] - gt_depth[mask]) / gt_depth[mask])
-            self.log('val_absrel', absrel)
+            self.log('val_absrel', absrel, prog_bar=True)
 
     def configure_optimizers(self):
         return torch.optim.AdamW(self.parameters(), lr=self.lr)
