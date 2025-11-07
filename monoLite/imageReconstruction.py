@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class ImageReconOptimization(nn.Module):
     def __init__(self, alpha=0.85, smoothness_weight=0.1):
         super().__init__()
@@ -45,7 +46,8 @@ class ImageReconOptimization(nn.Module):
         total_loss = 0
         for scale, disp in enumerate(disp_preds):
             tgt_scaled = F.interpolate(img_tgt, size=disp.shape[-2:], mode="bilinear", align_corners=False)
-            srcs_scaled = [F.interpolate(src, size=disp.shape[-2:], mode="bilinear", align_corners=False) for src in img_srcs]
+            srcs_scaled = \
+                [F.interpolate(src, size=disp.shape[-2:], mode="bilinear", align_corners=False) for src in img_srcs]
 
             reproj_losses = []
             for src, pose in zip(srcs_scaled, pose_preds):

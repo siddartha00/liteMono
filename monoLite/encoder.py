@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from .cdc import CDCBlock
 from .lgfi import LGFIBlock
 
+
 class LiteMonoEncoder(nn.Module):
     def __init__(self, variant="base"):  # 'tiny', 'small', 'base', '8M'
         super().__init__()
