@@ -23,7 +23,6 @@ class UpSampling(nn.Module):
         return x
 
 
-
 # --- Prediction Head ---
 class PredHead(nn.Module):
     def __init__(self, in_channels):
@@ -68,13 +67,11 @@ class LiteMonoDecoder(nn.Module):
         pred1 = self.head1(x)  # 1/4 resolution
 
         x = self.up2(x, x1)  # Upsample and concat with x1
-        print(f"After Up2 {x.shape}")
         pred2 = self.head2(x)  # 1/2 resolution
 
         target_size = x1.shape[-2:]
         x = F.interpolate(x, size=target_size, mode='bilinear', align_corners=False)
         x = self.up3(x, None) if hasattr(self.up3, 'forward') and self.up3 is not None else x
-        print(f"After Up3 {x.shape}")
         pred3 = self.head3(x)  # Full resolution estimate
 
         # Return all scales for loss computation as in the paper
