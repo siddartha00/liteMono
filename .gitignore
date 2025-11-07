@@ -2,3 +2,7 @@ checkpoints
 .vscode
 data
 __pycache__
+logs
+tb_logs
+.pytest_cache
+outputs
