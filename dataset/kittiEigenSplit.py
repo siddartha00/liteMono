@@ -145,6 +145,7 @@ class KITTISelfSupDataModule(pl.LightningDataModule):
                           shuffle=True,
                           num_workers=self.num_workers,
                           pin_memory=True,
+                          persistent_workers=True,
                           collate_fn=self._collate_fn)
 
     def val_dataloader(self):
@@ -153,6 +154,7 @@ class KITTISelfSupDataModule(pl.LightningDataModule):
                           shuffle=False,
                           num_workers=self.num_workers,
                           pin_memory=True,
+                          persistent_workers=True,
                           collate_fn=self._collate_fn)
 
     def test_dataloader(self):

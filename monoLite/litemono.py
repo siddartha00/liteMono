@@ -27,6 +27,16 @@ class LiteMonoSystem(pl.LightningModule):
         img_tgt = batch['img_tgt']         # [B,3,H,W]
         img_srcs = batch['img_srcs']       # e.g. list of [B,3,H,W] frames before/after
         intrinsics = batch['K']            # [B,3,3], camera matrix for all frames
+        for key, value in batch.items():
+            if isinstance(value, torch.Tensor):
+                assert not torch.isnan(value).any(), f"NaN in batch[{key}]"
+                assert not torch.isinf(value).any(), f"Inf in batch[{key}]"
+            elif isinstance(value, list):
+                for i, tensor in enumerate(value):
+                    if isinstance(tensor, torch.Tensor):
+                        assert not torch.isnan(tensor).any(), f"NaN in batch[{key}][{i}]"
+                        assert not torch.isinf(tensor).any(), f"Inf in batch[{key}][{i}]"
+
         # Predict depth/disparity for target
         disp_preds = self(img_tgt)         # list of multi-scale outputs
         # Predict pose for each src (from tgt to src)
@@ -44,6 +54,15 @@ class LiteMonoSystem(pl.LightningModule):
         img_tgt = batch['img_tgt']
         img_srcs = batch['img_srcs']
         intrinsics = batch['K']
+        for key, value in batch.items():
+            if isinstance(value, torch.Tensor):
+                assert not torch.isnan(value).any(), f"NaN in batch[{key}]"
+                assert not torch.isinf(value).any(), f"Inf in batch[{key}]"
+            elif isinstance(value, list):
+                for i, tensor in enumerate(value):
+                    if isinstance(tensor, torch.Tensor):
+                        assert not torch.isnan(tensor).any(), f"NaN in batch[{key}][{i}]"
+                        assert not torch.isinf(tensor).any(), f"Inf in batch[{key}][{i}]"
         disp_preds = self(img_tgt)
         pose_preds = [self.posenet(torch.cat([img_tgt, src], dim=1)) for src in img_srcs]
         loss = self.loss_fn(img_tgt, img_srcs, disp_preds, pose_preds, intrinsics)
@@ -57,4 +76,20 @@ class LiteMonoSystem(pl.LightningModule):
             self.log('val_absrel', absrel, prog_bar=True)
 
     def configure_optimizers(self):
-        return torch.optim.AdamW(self.parameters(), lr=self.lr)
+        optimizer = torch.optim.Adam(self.parameters(), lr=1e-4)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='min',           # reduce lr when monitored quantity stops decreasing
+            factor=0.8,           # reduce lr by this factor
+            patience=3           # wait this many epochs without improvement
+        )
+        return {
+            'optimizer': optimizer,
+            'lr_scheduler': {
+                'scheduler': scheduler,
+                'monitor': 'val_loss',  # validation loss name to monitor
+                'interval': 'epoch',
+                'frequency': 1
+            }
+        }
+

@@ -21,7 +21,7 @@ def get_args():
     parser.add_argument('--encoder_variant', type=str, default='base',
                         choices=['tiny', 'small', 'base', '8M'],
                         help='Variant of LiteMono encoder to use')
-    parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate')
+    parser.add_argument('--lr', type=float, default=5e-5, help='Learning rate')
     parser.add_argument('--decoder_channels', nargs='+', type=int, default=None,
                         help='List of decoder channels (default depends on encoder)')
 
@@ -98,6 +98,7 @@ def main():
         accumulate_grad_batches=args.accumulate_grad_batches,
         limit_train_batches=args.limit_train_batches,
         limit_val_batches=args.limit_val_batches,
+        gradient_clip_val=1.0
     )
 
     # --- Training ---
