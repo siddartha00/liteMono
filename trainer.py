@@ -13,7 +13,7 @@ def get_args():
     # --- Data settings ---
     parser.add_argument('--data_dir', type=str, default='data/splits',
                         help='Path to KITTI splits folder containing train/val/test csvs')
-    parser.add_argument('--batch_size', type=int, default=4, help='Batch size')
+    parser.add_argument('--batch_size', type=int, default=2, help='Batch size')
     parser.add_argument('--num_workers', type=int, default=4, help='Number of data loader workers')
     parser.add_argument('--load_depth', action='store_true', help='Load ground truth depth if available')
 
@@ -21,14 +21,14 @@ def get_args():
     parser.add_argument('--encoder_variant', type=str, default='base',
                         choices=['tiny', 'small', 'base', '8M'],
                         help='Variant of LiteMono encoder to use')
-    parser.add_argument('--lr', type=float, default=5e-5, help='Learning rate')
+    parser.add_argument('--lr', type=float, default=5e-3, help='Learning rate')
     parser.add_argument('--decoder_channels', nargs='+', type=int, default=None,
                         help='List of decoder channels (default depends on encoder)')
 
     # --- Training settings ---
     parser.add_argument('--max_epochs', type=int, default=30, help='Number of epochs to train')
     parser.add_argument('--gpus', type=int, default=1, help='Number of GPUs (0 for CPU)')
-    parser.add_argument('--precision', type=str, default='16-mixed',
+    parser.add_argument('--precision', type=str, default='32',
                         help='Precision mode (e.g., "32", "16-mixed")')
     parser.add_argument('--log_dir', type=str, default='logs', help='Where to save logs')
     parser.add_argument('--save_dir', type=str, default='checkpoints', help='Where to save checkpoints')
