@@ -30,7 +30,7 @@ class PredHead(nn.Module):
         self.conv1 = nn.Conv2d(in_channels, in_channels // 2, kernel_size=3, padding=1)
         self.act1 = nn.GELU()
         self.conv2 = nn.Conv2d(in_channels // 2, 1, kernel_size=1)
-        self.act2 = nn.GELU()
+        self.act2 = nn.Sigmoid()
         # Inverse depth maps are predicted with a sigmoid activation
 
     def forward(self, x):

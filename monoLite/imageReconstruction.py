@@ -209,26 +209,34 @@ class ImageReconOptimization(nn.Module):
 
 
         src_points = T.bmm(homo_points)[:, :3, :]  # [B, 3, N]
+        assert not torch.isnan(src_points).any(), "NaN in src_points in project"
+        assert not torch.isinf(src_points).any(), "Inf in src_points in project"
+
 
         # Project to camera coordinates (scale by Z)
-        pix_coords = K.bmm(src_points)  # [B, 3, N]
-        pix_xy = pix_coords[:, :2, :] / (pix_coords[:, 2:3, :] + 1e-7)
+        pix_coords = K.bmm(src_points.float())  # [B, 3, N]
+        # print("Min Z =", pix_coords[:, 2, :].min())
+        # print("Max Z =", pix_coords[:, 2, :].max())
+        assert not torch.isinf(pix_coords).any(), 'InF pix_coords in project'
+        assert not torch.isnan(pix_coords).any(), 'NaN pix_coords in project'
+        pix_xy = pix_coords[:, :2, :] / (pix_coords[:, 2:3, :] + 1e-4)
 
         # Normalize to [-1, 1] for grid sample
         x_norm = 2 * (pix_xy[:, 0, :] / (W - 1)) - 1
         y_norm = 2 * (pix_xy[:, 1, :] / (H - 1)) - 1
 
         grid = torch.stack([x_norm, y_norm], dim=2).view(B, H, W, 2)
-        assert not torch.isinf(grid).any(), 'InF grid in project'
-        assert not torch.isnan(grid).any(), 'NaN grid in project'
+        grid = torch.clamp(grid, -1e3, 1e3)
+        assert not torch.isinf(grid).any(), f"Grid stats: min={grid.min().item()}, max={grid.max().item()}, mean={grid.mean().item()}"
+        assert not torch.isnan(grid).any(), f"Grid stats: min={grid.min().item()}, max={grid.max().item()}, mean={grid.mean().item()}"
         return grid
 
 
     def view_synthesis(self, src, disp, pose, K):
-        disp = torch.clamp(disp, min=1e-4, max=1e-1)
+        disp = torch.clamp(disp, min=1e-4, max=1.0)
         B, _, H, W = disp.shape
         depth = 1.0 / disp
-
+        depth = torch.clamp(depth, max=100)
         K_inv = torch.inverse(K)
 
         cam_points = self.backproject(depth, K_inv)  # [B,3,H*W]

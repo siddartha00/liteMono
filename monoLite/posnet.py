@@ -71,16 +71,16 @@ class PoseNet(nn.Module):
     def forward(self, img_pair):
         # img_pair: concatenated [B,6,H,W] frame pair
         assert not torch.isinf(img_pair).any(), 'InF value in forward PoseNet'
-        assert not torch.isNaN(img_pair).any(), 'NaN value in forward PoseNet'
+        assert not torch.isnan(img_pair).any(), 'NaN value in forward PoseNet'
         feat = self.feature_extractor(img_pair)
         assert not torch.isinf(feat).any(), 'InF value in feat PoseNet'
-        assert not torch.isNaN(feat).any(), 'NaN value in feat PoseNet'
+        assert not torch.isnan(feat).any(), 'NaN value in feat PoseNet'
         pooled = self.avgpool(feat)
         assert not torch.isinf(pooled).any(), 'InF value in pooled PoseNet'
-        assert not torch.isNaN(pooled).any(), 'NaN value in pooled PoseNet'
+        assert not torch.isnan(pooled).any(), 'NaN value in pooled PoseNet'
         out = self.pose_head(pooled)
         assert not torch.isinf(out).any(), 'InF value in out PoseNet'
-        assert not torch.isNaN(out).any(), 'NaN value in out PoseNet'
+        assert not torch.isnan(out).any(), 'NaN value in out PoseNet'
         # Optionally, scale translation for stability as in Monodepth2
         out[:, :3] = torch.tanh(out[:, :3])  # rotation
         out[:, 3:] = out[:, 3:] * 0.01
