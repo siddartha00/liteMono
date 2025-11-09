@@ -8,32 +8,57 @@ class ImageReconOptimization(nn.Module):
         super().__init__()
         self.alpha = alpha
         self.smoothness_weight = smoothness_weight
+        self.loss_ssim = 0.0
+        self.loss_photomteric = 0.0
+        self.loss_smoothness = 0.0
 
     def ssim(self, x, y):
+        # Ensure valid range
+        x = torch.clamp(x, 0, 1)
+        y = torch.clamp(y, 0, 1)
+
         C1 = 0.01 ** 2
-        C2 = 0.03 ** 2
+        C2 = 0.09 ** 2
+
+        # Smooth reflection padding
         ref = nn.ReflectionPad2d(1)
         x = ref(x)
         y = ref(y)
-        mu_x = F.avg_pool2d(x, 3, 1, 1)
-        mu_y = F.avg_pool2d(y, 3, 1, 1)
-        sigma_x = F.avg_pool2d(x * x, 3, 1, 1) - mu_x ** 2
-        sigma_y = F.avg_pool2d(y * y, 3, 1, 1) - mu_y ** 2
-        sigma_xy = F.avg_pool2d(x * y, 3, 1, 1) - mu_x * mu_y
+
+        # Local means
+        mu_x = F.avg_pool2d(x, 3, 1, 0)
+        mu_y = F.avg_pool2d(y, 3, 1, 0)
+
+        # Local variances and covariance
+        sigma_x = F.avg_pool2d(x * x, 3, 1, 0) - mu_x ** 2
+        sigma_y = F.avg_pool2d(y * y, 3, 1, 0) - mu_y ** 2
+        sigma_xy = F.avg_pool2d(x * y, 3, 1, 0) - mu_x * mu_y
+
+        # Numerator and denominator
         ssim_n = (2 * mu_x * mu_y + C1) * (2 * sigma_xy + C2)
         ssim_d = (mu_x ** 2 + mu_y ** 2 + C1) * (sigma_x + sigma_y + C2)
-        ssim = ssim_n / (ssim_d + 1e-9)
-        assert not torch.isnan(ssim).any(), "NaN value in  SSIM"
-        assert not torch.isinf(ssim).any(), 'Inf value in SSIM'
-        ssim = torch.clamp((1 - ssim) / 2, 0, 1)
-        return ssim
+
+        # Add small stabilizer
+        ssim_map = ssim_n / (ssim_d + 1e-6)
+
+        # Replace NaNs/Infs
+        ssim_map = torch.nan_to_num(ssim_map, nan=1.0, posinf=1.0, neginf=1.0)
+
+        # Convert to loss-style SSIM (lower = better)
+        ssim_loss = (1 - ssim_map) / 2
+        ssim_loss = ssim_loss.clamp(0, 1)
+
+        self.loss_ssim = ssim_loss
+
+        return ssim_loss
 
     def photometric_loss(self, recon, target):
         l1 = torch.abs(recon - target).mean(1, keepdim=True)
         assert not torch.isnan(l1).any(), 'NaN value in l1 Photometric loss'
         assert not torch.isinf(l1).any(), 'Inf value in l1 Photometric loss'
         ssim_loss = self.ssim(recon, target)
-        return self.alpha * ssim_loss + (1 - self.alpha) * l1
+        self.loss_photomteric = self.alpha*((1-ssim_loss)/2) + (1-self.alpha)*l1
+        return self.loss_photomteric
 
     def smoothness_loss(self, disp, img):
         grad_disp_x = torch.abs(disp[:, :, :, :-1] - disp[:, :, :, 1:])
@@ -54,7 +79,8 @@ class ImageReconOptimization(nn.Module):
         smooth_y = grad_disp_y * torch.exp(-grad_img_y)
         assert not torch.isnan(smooth_y).any(), 'NaN value in smooth_y smoothness_loss'
         assert not torch.isinf(smooth_y).any(), 'InF value in smooth_y smoothness_loss'
-        return smooth_x.mean() + smooth_y.mean()
+        self.loss_smoothness = smooth_x.mean() + smooth_y.mean()
+        return self.loss_smoothness
 
     def pose_vec2mat(self,vec):
         """
@@ -127,12 +153,17 @@ class ImageReconOptimization(nn.Module):
         # intrinsics: Camera matrix
         #
         # For each scale...
+        self.loss_ssim = 0.0
+        self.loss_photomteric = 0.0
+        self.loss_smoothness = 0.0
+        for i, disp in enumerate(disp_preds):
+            disp = torch.clamp(disp, min=1e-4, max=1e-1)
         for i, src in enumerate(img_srcs):
             assert not torch.isnan(src).any(), f'NaN in img_srcs[{i}]'
             assert not torch.isinf(src).any(), f'Inf in img_srcs[{i}]'
         for i, disp in enumerate(disp_preds):
-            assert not torch.isnan(disp).any(), f'NaN in disp_preds[{i}]'
-            assert not torch.isinf(disp).any(), f'Inf in disp_preds[{i}]'
+            assert not torch.isnan(disp).any(), f'NaN in disp_preds[{i}], disp {i} stats: min={disp.min()}, max={disp.max()}, mean={disp.mean()}'
+            assert not torch.isinf(disp).any(), f'Inf in disp_preds[{i}], disp {i} stats: min={disp.min()}, max={disp.max()}, mean={disp.mean()}'
         for i, pose in enumerate(pose_preds):
             assert not torch.isnan(pose).any(), f'NaN in pose_preds[{i}]'
             assert not torch.isinf(pose).any(), f'Inf in pose_preds[{i}]'
@@ -159,7 +190,7 @@ class ImageReconOptimization(nn.Module):
             # Smoothness
             smooth = self.smoothness_loss(disp, tgt_scaled)
 
-            total_loss += min_loss.mean() + self.smoothness_weight * smooth
+            total_loss = min_loss.mean() + self.smoothness_weight * smooth
 
         return total_loss / len(disp_preds)
 

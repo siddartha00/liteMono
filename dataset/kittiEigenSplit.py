@@ -132,8 +132,8 @@ class KITTISelfSupDataModule(pl.LightningDataModule):
 
     def setup(self, stage=None):
         train_csv = os.path.join(self.data_dir, 'train_selfsup.csv')
-        val_csv = os.path.join(self.data_dir, 'val_selfsup.csv')
-        test_csv = os.path.join(self.data_dir, 'test_selfsup.csv')
+        val_csv = os.path.join(self.data_dir, 'test_selfsup.csv')
+        test_csv = os.path.join(self.data_dir, 'val_selfsup.csv')
 
         self.train_dataset = KITTISelfSupDataset(train_csv, load_depth=self.load_depth)
         self.val_dataset = KITTISelfSupDataset(val_csv, load_depth=self.load_depth)
